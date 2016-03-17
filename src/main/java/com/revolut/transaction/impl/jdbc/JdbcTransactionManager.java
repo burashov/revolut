@@ -5,23 +5,37 @@ import java.sql.SQLException;
 
 import javax.sql.DataSource;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.revolut.transaction.Transaction;
 import com.revolut.transaction.TransactionManager;
+
 
 public class JdbcTransactionManager implements TransactionManager {
 
 	private DataSource dataSource;
 	
+	private Logger log = LoggerFactory.getLogger(JdbcTransactionManager.class);
+		
 	public JdbcTransactionManager(DataSource dataSource) {
 		this.dataSource = dataSource;
+		
+		log.info("Transaction manager {} started", JdbcTransaction.class);
 	}
 	
 	@Override
 	public Transaction begin() {
 		try {
 			Connection connection = dataSource.getConnection();
+			connection.setAutoCommit(false);
+			connection.setTransactionIsolation(Connection.TRANSACTION_REPEATABLE_READ);
 			
-			return new JdbcTransaction(connection);
+			Transaction transaction = new JdbcTransaction(connection, connection.toString()); 
+			
+			log.info("{}: begin", transaction);
+			
+			return transaction; 
 			
 		} catch (SQLException e) {
 			throw new RuntimeException(e);
@@ -34,6 +48,9 @@ public class JdbcTransactionManager implements TransactionManager {
 			Connection connection = ((JdbcTransaction) transaction).getConnection();
 			connection.rollback();
 			connection.close(); // release connection to connection pool
+			
+			log.info("{}: rollback", transaction);
+			
 		} catch (SQLException e) {
 			throw new RuntimeException(e);
 		}
@@ -45,6 +62,9 @@ public class JdbcTransactionManager implements TransactionManager {
 			Connection connection = ((JdbcTransaction) transaction).getConnection();
 			connection.commit();
 			connection.close(); // release connection to connection pool
+			
+			log.info("{}: commit", transaction);
+			
 		} catch (SQLException e) {
 			throw new RuntimeException(e);
 		}

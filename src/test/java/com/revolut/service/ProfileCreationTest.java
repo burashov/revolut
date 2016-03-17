@@ -17,7 +17,7 @@ public class ProfileCreationTest {
 	@Test
 	public void test() throws InterruptedException {
 		ApplicationConfig config = new JdbcApplicatonConfig();
-		config.load();
+		config.refresh();
 
 		ProfileService profileService = config.getProfileService();
 		
@@ -29,7 +29,7 @@ public class ProfileCreationTest {
 		}
 
 		executor.shutdown();
-		executor.awaitTermination(1, TimeUnit.SECONDS);
+		executor.awaitTermination(5, TimeUnit.SECONDS);
 
 		count = profileService.count();
 		Assert.assertEquals(1000, count);

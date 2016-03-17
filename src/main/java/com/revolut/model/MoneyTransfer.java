@@ -10,11 +10,7 @@ public class MoneyTransfer {
 	private String profileIdFrom;
 	
 	private String profileIdTo;
-	
-	private Currency currencyFrom;
-	
-	private Currency currencyTo;
-	
+		
 	private Money moneyFrom;
 	
 	private Money moneyTo;
@@ -49,14 +45,6 @@ public class MoneyTransfer {
 		return profileIdTo;
 	}
 
-	public Currency getCurrencyFrom() {
-		return currencyFrom;
-	}
-
-	public Currency getCurrencyTo() {
-		return currencyTo;
-	}
-
 	public Money getFee() {
 		return fee;
 	}
@@ -78,11 +66,10 @@ public class MoneyTransfer {
 		return MoreObjects.toStringHelper(this)
 				.add("profileIdFrom", profileIdFrom)
 				.add("profileIdTo", profileIdTo)
-				.add("currencyFrom", currencyFrom)
-				.add("currencyTo", currencyTo)
 				.add("moneyFrom", moneyFrom)
 				.add("moneyTo", moneyTo)
 				.add("fee", fee)
+				.add("fxRate", fxRate)
 				.toString();
 	}		
 	

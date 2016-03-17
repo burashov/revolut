@@ -8,11 +8,15 @@ import com.revolut.transaction.Transaction;
 
 public interface ProfileService {
 
-	Optional<Profile> findProfile(Transaction transaction, String profileId);
+	ProfileService withTransaction(Transaction transaction);
 	
-	void addMoney(Transaction transaction, Profile profile, Money money);
+	void obtainLock(String profileId);
+	
+	Optional<Profile> findProfile(String profileId);
+	
+	void addMoney(Profile profile, Money money);
 
-	void subtractMoney(Transaction transaction, Profile profile, Money money);
+	void subtractMoney(Profile profile, Money money);
 	
 	void createProfile(Profile profile);
 	

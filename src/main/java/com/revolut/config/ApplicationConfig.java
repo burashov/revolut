@@ -6,9 +6,11 @@ import com.revolut.transaction.TransactionManager;
 
 public interface ApplicationConfig {
 	
-	void load();
+	void refresh();
 	
 	ProfileService getProfileService();
 	
 	MoneyTransferService getMoneyTransferService();
+	
+	TransactionManager getTransactionManager();
 }

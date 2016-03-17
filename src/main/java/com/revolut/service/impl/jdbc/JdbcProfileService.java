@@ -7,48 +7,85 @@ import java.sql.SQLException;
 import java.util.Currency;
 import java.util.Optional;
 
-import javax.sql.DataSource;
-
 import org.apache.commons.dbutils.QueryRunner;
 import org.apache.commons.dbutils.ResultSetHandler;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Preconditions;
 import com.revolut.model.Money;
 import com.revolut.model.Profile;
 import com.revolut.service.ProfileService;
 import com.revolut.transaction.Transaction;
+import com.revolut.transaction.TransactionManager;
 import com.revolut.transaction.impl.jdbc.JdbcTransaction;
 
 public class JdbcProfileService implements ProfileService {
 
 	private QueryRunner queryRunner = new QueryRunner();
 
-	private QueryRunner autoCommitQueryRunner;
+	private final static String SELECT_PROFILE_SQL = "select * from profiles where profileId = ?";
 
-	private final static String SELECT_PROFILE_SQL = "select * from profiles where p.profileId = ?";
+	private final static String SELECT_PROFILE_FOR_UPDATE_SQL = "select * from profiles where profileId = ? for update";
 
-	private final static String ADD_MONEY_SQL = "update profiles set amount = amount + ? where accountId = ?";
+	private final static String ADD_MONEY_SQL = "update profiles set amount = amount + ? where profileId = ?";
 
-	private final static String SUBTRACT_MONEY_SQL = "update profiles set amount = amount - ? where accountId = ?";
+	private final static String SUBTRACT_MONEY_SQL = "update profiles set amount = amount - ? where profileId = ?";
 
 	private final static String CREATE_PROFILE_SQL = "insert into profiles (profileId, amount, currency) values (?, ?, ?)";
 
 	private final static String COUNT_PROFILE_SQL = "select count(*) from profiles";
 
-	public JdbcProfileService(DataSource dataSource) {
-		Preconditions.checkNotNull(dataSource);
+	private TransactionManager transactionManager;
 
-		this.autoCommitQueryRunner = new QueryRunner(dataSource);
+	private Optional<Transaction> transaction;
+
+	Logger log = LoggerFactory.getLogger(JdbcProfileService.class);
+
+	public JdbcProfileService(TransactionManager transactionManager, Optional<Transaction> transaction) {
+		Preconditions.checkNotNull(transactionManager);
+		Preconditions.checkNotNull(transaction);
+
+		this.transactionManager = transactionManager;
+		this.transaction = transaction;
 	}
 
 	@Override
-	public Optional<Profile> findProfile(Transaction transaction, String profileId) {
-		Connection connection = ((JdbcTransaction) transaction).getConnection();
+	public ProfileService withTransaction(Transaction transaction) {
+		return new JdbcProfileService(transactionManager, Optional.of(transaction));
+	}
+
+	@Override
+	public void obtainLock(String profileId) {
+		JdbcTransaction transaction = getTransaction();
 
 		try {
+			Connection connection = transaction.getConnection();
+
+			queryRunner.query(connection, SELECT_PROFILE_FOR_UPDATE_SQL, new ProfileResultSetHander(), profileId);
+			
+			log.info("{}: locked {}", transaction, profileId);
+		} catch (SQLException e) {
+			throw new RuntimeException(e);
+		} finally {
+			releaseTransaction(transaction);
+		}
+	}
+
+	@Override
+	public Optional<Profile> findProfile(String profileId) {
+		JdbcTransaction transaction = getTransaction();
+
+		try {
+			Connection connection = transaction.getConnection();
+
+			log.info("{}: finding {}", transaction, profileId);
+
 			return queryRunner.query(connection, SELECT_PROFILE_SQL, new ProfileResultSetHander(), profileId);
 		} catch (SQLException e) {
 			throw new RuntimeException(e);
+		} finally {
+			releaseTransaction(transaction);
 		}
 	}
 
@@ -72,32 +109,44 @@ public class JdbcProfileService implements ProfileService {
 	}
 
 	@Override
-	public void addMoney(Transaction transaction, Profile profile, Money money) {
+	public void addMoney(Profile profile, Money money) {
 		Preconditions.checkArgument(profile.getCurrency().equals(money.getCurrency()),
 				"account %s and money %s must be in the same currency");
 
-		Connection connection = ((JdbcTransaction) transaction).getConnection();
+		JdbcTransaction transaction = getTransaction();
 
 		try {
-			queryRunner.update(connection, ADD_MONEY_SQL, money.getAmount());
+			Connection connection = transaction.getConnection();
+
+			log.info("{}: Adding {} to {}", transaction, money, profile);
+
+			queryRunner.update(connection, ADD_MONEY_SQL, money.getAmount(), profile.getId());
 		} catch (SQLException e) {
 			throw new RuntimeException(e);
+		} finally {
+			releaseTransaction(transaction);
 		}
 	}
 
 	@Override
-	public void subtractMoney(Transaction transaction, Profile profile, Money money) {
+	public void subtractMoney(Profile profile, Money money) {
 		Preconditions.checkArgument(profile.getCurrency().equals(money.getCurrency()),
 				"account %s and money %s must be in the same currency");
 		Preconditions.checkArgument(profile.getMoney().getAmount().compareTo(money.getAmount()) != -1,
 				"account %s does not have enough money %s", money);
 
-		Connection connection = ((JdbcTransaction) transaction).getConnection();
+		JdbcTransaction transaction = getTransaction();
 
 		try {
-			queryRunner.update(connection, SUBTRACT_MONEY_SQL, money.getAmount());
+			Connection connection = transaction.getConnection();
+
+			log.info("{}: Subtracting {} from {}", transaction, money, profile);
+
+			queryRunner.update(connection, SUBTRACT_MONEY_SQL, money.getAmount(), profile.getId());
 		} catch (SQLException e) {
 			throw new RuntimeException(e);
+		} finally {
+			releaseTransaction(transaction);
 		}
 	}
 
@@ -105,25 +154,40 @@ public class JdbcProfileService implements ProfileService {
 	public void createProfile(Profile profile) {
 		Preconditions.checkNotNull(profile);
 
+		JdbcTransaction transaction = getTransaction();
+
 		try {
-			autoCommitQueryRunner.insert(CREATE_PROFILE_SQL, new ResultSetHandler<Object>() {
+			Connection connection = transaction.getConnection();
+
+			log.info("{}: Creating {}", transaction, profile);
+
+			queryRunner.insert(connection, CREATE_PROFILE_SQL, new ResultSetHandler<Object>() {
 
 				@Override
 				public Object handle(ResultSet rs) throws SQLException {
 					return null;
 				}
-			}, new Object[] { profile.getId(), profile.getMoney().getAmount(),  profile.getCurrency().getCurrencyCode()});
-
+			}, new Object[] { profile.getId(), profile.getMoney().getAmount(),
+					profile.getCurrency().getCurrencyCode() });
 		} catch (SQLException e) {
 			throw new RuntimeException(e);
+		} finally {
+			releaseTransaction(transaction);
 		}
 
 	}
 
 	@Override
 	public long count() {
+
+		JdbcTransaction transaction = getTransaction();
+
 		try {
-			return autoCommitQueryRunner.query(COUNT_PROFILE_SQL, new ResultSetHandler<Long>() {
+			Connection connection = transaction.getConnection();
+
+			log.info("{}: counting", transaction);
+
+			return queryRunner.query(connection, COUNT_PROFILE_SQL, new ResultSetHandler<Long>() {
 
 				@Override
 				public Long handle(ResultSet rs) throws SQLException {
@@ -135,7 +199,36 @@ public class JdbcProfileService implements ProfileService {
 
 		} catch (SQLException e) {
 			throw new RuntimeException(e);
+		} finally {
+			releaseTransaction(transaction);
 		}
 
+	}
+
+	private JdbcTransaction getTransaction() {
+
+		if (transaction.isPresent()) {
+			return (JdbcTransaction) transaction.get();
+		} else {
+			return (JdbcTransaction) transactionManager.begin();
+		}
+	}
+
+	private void releaseTransaction(JdbcTransaction transaction) {
+
+		if (this.transaction.isPresent()) {
+			// do nothing
+		} else {
+			// close connection
+			transactionManager.commit(transaction);
+		}
+	}
+
+	public static class NoResultSetHandler implements ResultSetHandler<Object> {
+
+		@Override
+		public Object handle(ResultSet rs) throws SQLException {
+			return null;
+		}
 	}
 }

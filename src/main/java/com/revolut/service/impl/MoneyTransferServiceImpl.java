@@ -1,5 +1,6 @@
 package com.revolut.service.impl;
 
+import java.util.Arrays;
 import java.util.Optional;
 
 import org.slf4j.Logger;
@@ -43,16 +44,22 @@ public class MoneyTransferServiceImpl implements MoneyTransferService {
 		this.transactionManager = transactionManager;
 		this.profileService = profileService;
 
+		log.info("Service {} started", MoneyTransferServiceImpl.class);
 	}
 
 	@Override
 	public MoneyTransfer transfer(String profileIdFrom, String profileIdTo, Money amount) {
 
+		log.info("About to transfer {} from {} to {}", amount, profileIdFrom, profileIdTo);
+
 		Transaction transaction = transactionManager.begin();
 
 		try {
-			Optional<Profile> optionalFrom = profileService.findProfile(transaction, profileIdFrom);
-			Optional<Profile> optionalTo = profileService.findProfile(transaction, profileIdTo);
+
+			obtainLocks(transaction, profileIdFrom, profileIdTo);
+
+			Optional<Profile> optionalFrom = profileService.withTransaction(transaction).findProfile(profileIdFrom);
+			Optional<Profile> optionalTo = profileService.withTransaction(transaction).findProfile(profileIdTo);
 
 			Preconditions.checkArgument(optionalFrom.isPresent(), "profileFrom %s is not found", profileIdFrom);
 			Preconditions.checkArgument(optionalTo.isPresent(), "profileTo %s is not found", profileIdTo);
@@ -67,21 +74,36 @@ public class MoneyTransferServiceImpl implements MoneyTransferService {
 			MoneyTransfer moneyTransfer = new MoneyTransfer(profileFrom, profileTo, amount, convertedAmount, fee,
 					fxRate);
 
-			profileService.subtractMoney(transaction, profileFrom, moneyTransfer.getMoneyFrom());
-			profileService.addMoney(transaction, profileTo, moneyTransfer.getMoneyTo());
+			profileService.withTransaction(transaction).subtractMoney(profileFrom, moneyTransfer.getMoneyFrom());
+			profileService.withTransaction(transaction).addMoney(profileTo, moneyTransfer.getMoneyTo());
 
 			// We can also add fee to revolut account here...
 
 			transactionManager.commit(transaction);
 
-			System.out.println("123213");
 			log.info("Successfully transfered {} ", moneyTransfer);
 
 			return moneyTransfer;
 
 		} catch (Throwable t) {
+
+			log.error("{}: {}", transaction, t.getMessage(), t);
+
 			transactionManager.rollback(transaction);
+
 			throw t;
+		}
+
+	}
+
+	private void obtainLocks(Transaction transaction, String profileIdFrom, String profileIdTo) {
+
+		String[] locks = new String[] { profileIdFrom, profileIdTo };
+
+		Arrays.sort(locks);
+
+		for (String lock : locks) {
+			profileService.withTransaction(transaction).obtainLock(lock);
 		}
 
 	}
