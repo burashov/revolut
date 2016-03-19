@@ -29,7 +29,7 @@ public class JdbcTransactionManager implements TransactionManager {
 		try {
 			Connection connection = dataSource.getConnection();
 			connection.setAutoCommit(false);
-			connection.setTransactionIsolation(Connection.TRANSACTION_REPEATABLE_READ);
+			connection.setTransactionIsolation(Connection.TRANSACTION_REPEATABLE_READ); // phantom reads are ok
 			
 			Transaction transaction = new JdbcTransaction(connection, connection.toString()); 
 			

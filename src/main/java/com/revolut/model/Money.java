@@ -3,13 +3,16 @@ package com.revolut.model;
 import java.math.BigDecimal;
 import java.util.Currency;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Preconditions;
 
 public class Money {
 
+	@JsonProperty
 	private Currency currency;
 
+	@JsonProperty
 	private BigDecimal amount;
 
 	public Money(Currency currency, BigDecimal amount) {

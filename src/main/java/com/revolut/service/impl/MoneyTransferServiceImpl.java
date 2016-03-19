@@ -16,6 +16,8 @@ import com.revolut.service.FeeCalculator;
 import com.revolut.service.FxRatesProvider;
 import com.revolut.service.MoneyTransferService;
 import com.revolut.service.ProfileService;
+import com.revolut.service.ServiceException;
+import com.revolut.service.ServiceException.Type;
 import com.revolut.transaction.Transaction;
 import com.revolut.transaction.TransactionManager;
 
@@ -46,9 +48,9 @@ public class MoneyTransferServiceImpl implements MoneyTransferService {
 
 		log.info("Service {} started", MoneyTransferServiceImpl.class);
 	}
-
+	
 	@Override
-	public MoneyTransfer transfer(String profileIdFrom, String profileIdTo, Money amount) {
+	public MoneyTransfer transfer(String profileIdFrom, String profileIdTo, Money amount) throws ServiceException {
 
 		log.info("About to transfer {} from {} to {}", amount, profileIdFrom, profileIdTo);
 
@@ -61,12 +63,22 @@ public class MoneyTransferServiceImpl implements MoneyTransferService {
 			Optional<Profile> optionalFrom = profileService.withTransaction(transaction).findProfile(profileIdFrom);
 			Optional<Profile> optionalTo = profileService.withTransaction(transaction).findProfile(profileIdTo);
 
-			Preconditions.checkArgument(optionalFrom.isPresent(), "profileFrom %s is not found", profileIdFrom);
-			Preconditions.checkArgument(optionalTo.isPresent(), "profileTo %s is not found", profileIdTo);
-
+			if(!optionalFrom.isPresent()) {
+				throw new ServiceException("profileFrom is not found: " + profileIdFrom, Type.PROFILE_DOES_NOT_EXIST);
+			}
+			
+			if(!optionalTo.isPresent()) {
+				throw new ServiceException("profileTo not found: " + profileIdTo, Type.PROFILE_DOES_NOT_EXIST);
+			}
+			
 			Profile profileFrom = optionalFrom.get();
 			Profile profileTo = optionalTo.get();
 
+			if (!profileFrom.getCurrency().equals(amount.getCurrency())) {
+				throw new ServiceException("profile " + profileFrom + " and money " + amount + " must be in the same currency",
+						Type.PROFILE_AND_MONEY_MUST_BE_IN_THE_SAME_CURRENCY);
+			}			
+			
 			FxRate fxRate = fxRatesProvider.getCurrentRate(profileFrom.getCurrency(), profileTo.getCurrency());
 			Money fee = feeCalculator.calculateFee(profileFrom, profileTo, amount);
 			Money convertedAmount = FxConverter.convert(amount.subtractMoney(fee), fxRate);
@@ -87,7 +99,9 @@ public class MoneyTransferServiceImpl implements MoneyTransferService {
 
 		} catch (Throwable t) {
 
-			log.error("{}: {}", transaction, t.getMessage(), t);
+			if(!(t instanceof ServiceException)) {
+				log.error("{}: {}", transaction, t.getMessage(), t);
+			}
 
 			transactionManager.rollback(transaction);
 
@@ -100,6 +114,7 @@ public class MoneyTransferServiceImpl implements MoneyTransferService {
 
 		String[] locks = new String[] { profileIdFrom, profileIdTo };
 
+		// No deadlocks
 		Arrays.sort(locks);
 
 		for (String lock : locks) {

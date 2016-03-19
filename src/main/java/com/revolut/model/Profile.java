@@ -2,13 +2,16 @@ package com.revolut.model;
 
 import java.util.Currency;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Preconditions;
 
 public class Profile {
 
+	@JsonProperty
 	private String profileId;
 	
+	@JsonProperty
 	private Money money;
 	
 	public Profile(String profileId, Money money) {

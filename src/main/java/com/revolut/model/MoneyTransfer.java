@@ -1,22 +1,27 @@
 package com.revolut.model;
 
-import java.util.Currency;
-
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Preconditions;
 
 public class MoneyTransfer {
 
+	@JsonProperty
 	private String profileIdFrom;
 	
+	@JsonProperty
 	private String profileIdTo;
 		
+	@JsonProperty
 	private Money moneyFrom;
 	
+	@JsonProperty
 	private Money moneyTo;
 		
+	@JsonProperty
 	private Money fee;
 	
+	@JsonProperty
 	private FxRate fxRate;
 
 	public MoneyTransfer(Profile from, Profile to,

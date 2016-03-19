@@ -16,6 +16,8 @@ import com.google.common.base.Preconditions;
 import com.revolut.model.Money;
 import com.revolut.model.Profile;
 import com.revolut.service.ProfileService;
+import com.revolut.service.ServiceException;
+import com.revolut.service.ServiceException.Type;
 import com.revolut.transaction.Transaction;
 import com.revolut.transaction.TransactionManager;
 import com.revolut.transaction.impl.jdbc.JdbcTransaction;
@@ -63,7 +65,7 @@ public class JdbcProfileService implements ProfileService {
 			Connection connection = transaction.getConnection();
 
 			queryRunner.query(connection, SELECT_PROFILE_FOR_UPDATE_SQL, new ProfileResultSetHander(), profileId);
-			
+
 			log.info("{}: locked {}", transaction, profileId);
 		} catch (SQLException e) {
 			throw new RuntimeException(e);
@@ -109,9 +111,11 @@ public class JdbcProfileService implements ProfileService {
 	}
 
 	@Override
-	public void addMoney(Profile profile, Money money) {
-		Preconditions.checkArgument(profile.getCurrency().equals(money.getCurrency()),
-				"account %s and money %s must be in the same currency");
+	public void addMoney(Profile profile, Money money) throws ServiceException {
+		if (!profile.getCurrency().equals(money.getCurrency())) {
+			throw new ServiceException("profile " + profile + " and money " + money + " must be in the same currency",
+					Type.PROFILE_AND_MONEY_MUST_BE_IN_THE_SAME_CURRENCY);
+		}
 
 		JdbcTransaction transaction = getTransaction();
 
@@ -129,11 +133,15 @@ public class JdbcProfileService implements ProfileService {
 	}
 
 	@Override
-	public void subtractMoney(Profile profile, Money money) {
-		Preconditions.checkArgument(profile.getCurrency().equals(money.getCurrency()),
-				"account %s and money %s must be in the same currency");
-		Preconditions.checkArgument(profile.getMoney().getAmount().compareTo(money.getAmount()) != -1,
-				"account %s does not have enough money %s", money);
+	public void subtractMoney(Profile profile, Money money) throws ServiceException {
+		if (!profile.getCurrency().equals(money.getCurrency())) {
+			throw new ServiceException("profile " + profile + " and money " + money + " must be in the same currency",
+					Type.PROFILE_AND_MONEY_MUST_BE_IN_THE_SAME_CURRENCY);
+		}
+		if (profile.getMoney().getAmount().compareTo(money.getAmount()) == -1) {
+			throw new ServiceException("profile " + profile + " does not have enough money " + money,
+					Type.PROFILE_DOES_NOT_HAVE_ENOUGH_MONEY);
+		}
 
 		JdbcTransaction transaction = getTransaction();
 
@@ -151,8 +159,13 @@ public class JdbcProfileService implements ProfileService {
 	}
 
 	@Override
-	public void createProfile(Profile profile) {
+	public void createProfile(Profile profile) throws ServiceException {
 		Preconditions.checkNotNull(profile);
+
+		if (profile.getMoney().getAmount().compareTo(BigDecimal.ZERO) == -1) {
+			throw new ServiceException("profile " + profile + " does not have enough money " + profile.getMoney(),
+					Type.PROFILE_DOES_NOT_HAVE_ENOUGH_MONEY);
+		}
 
 		JdbcTransaction transaction = getTransaction();
 

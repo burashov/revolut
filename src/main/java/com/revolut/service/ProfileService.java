@@ -14,11 +14,11 @@ public interface ProfileService {
 	
 	Optional<Profile> findProfile(String profileId);
 	
-	void addMoney(Profile profile, Money money);
+	void addMoney(Profile profile, Money money) throws ServiceException;
 
-	void subtractMoney(Profile profile, Money money);
+	void subtractMoney(Profile profile, Money money) throws ServiceException;
 	
-	void createProfile(Profile profile);
+	void createProfile(Profile profile) throws ServiceException;
 	
 	long count();
 }

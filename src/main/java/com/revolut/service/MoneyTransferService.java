@@ -5,6 +5,6 @@ import com.revolut.model.MoneyTransfer;
 
 public interface MoneyTransferService {
 	
-	MoneyTransfer transfer(String profileIdFrom, String profileIdTo, Money amount);
-		
+	MoneyTransfer transfer(String profileIdFrom, String profileIdTo, Money amount) throws ServiceException;
+	
 }

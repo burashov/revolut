@@ -69,7 +69,7 @@ public class JdbcApplicatonConfig implements ApplicationConfig {
 
 		try {
 			queryRunner.update("create table profiles(profileId varchar(36) primary key, "
-					+ "currency char(3) not null, " + "amount decimal not null)");
+					+ "currency char(3) not null, " + "amount decimal(30, 4) not null)");
 
 		} catch (SQLException e) {
 			throw new RuntimeException(e);

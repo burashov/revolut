@@ -3,15 +3,19 @@ package com.revolut.model;
 import java.math.BigDecimal;
 import java.util.Currency;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Preconditions;
 
 public class FxRate {
 
+	@JsonProperty
 	private Currency from;
 	
+	@JsonProperty
 	private Currency to;
 	
+	@JsonProperty
 	private BigDecimal rate;
 
 	public FxRate(Currency from, Currency to, BigDecimal rate) {

@@ -19,6 +19,7 @@ public class TestUtils {
 	
 	public static Profile createRandomProfile() {
 		String profileId = UUID.randomUUID().toString();
+		
 		BigDecimal amount = BigDecimal.valueOf(Math.random() * 1000);
 
 		int i = (int) (Math.random() * availableCurrencies.size());

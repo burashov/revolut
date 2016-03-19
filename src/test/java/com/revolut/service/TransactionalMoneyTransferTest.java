@@ -20,7 +20,7 @@ public class TransactionalMoneyTransferTest {
 	private ExecutorService executor = Executors.newFixedThreadPool(32);
 
 	@Test
-	public void test() throws InterruptedException {
+	public void test() throws InterruptedException, ServiceException {
 		ApplicationConfig config = new JdbcApplicatonConfig()
 				.withFxRatesProvider((Currency from, Currency to) -> new FxRate(from, to, BigDecimal.TEN));
 

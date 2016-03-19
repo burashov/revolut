@@ -15,17 +15,26 @@ public class ProfileCreationTest {
 	private ExecutorService executor = Executors.newFixedThreadPool(32);
 
 	@Test
-	public void test() throws InterruptedException {
+	public void test() throws InterruptedException, ServiceException {
 		ApplicationConfig config = new JdbcApplicatonConfig();
 		config.refresh();
 
 		ProfileService profileService = config.getProfileService();
-		
+
 		long count = profileService.count();
 		Assert.assertEquals(0, count);
 
 		for (int i = 0; i < 1000; i++) {
-			executor.submit(() -> profileService.createProfile(TestUtils.createRandomProfile()));
+
+			executor.submit(new Runnable() {
+				public void run() {
+					try {
+						profileService.createProfile(TestUtils.createRandomProfile());
+					} catch (ServiceException e) {
+						throw new RuntimeException(e);
+					}
+				}
+			});
 		}
 
 		executor.shutdown();
