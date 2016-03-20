@@ -24,6 +24,9 @@ public class MoneyTransfer {
 	@JsonProperty
 	private FxRate fxRate;
 
+	MoneyTransfer() {
+	}
+	
 	public MoneyTransfer(Profile from, Profile to,
 			Money moneyFrom, Money moneyTo, Money fee, FxRate fxRate) {
 		Preconditions.checkNotNull(from);

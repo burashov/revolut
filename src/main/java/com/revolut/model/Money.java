@@ -15,6 +15,9 @@ public class Money {
 	@JsonProperty
 	private BigDecimal amount;
 
+	Money() {
+	}
+	
 	public Money(Currency currency, BigDecimal amount) {
 		Preconditions.checkNotNull(currency);
 		Preconditions.checkNotNull(amount);

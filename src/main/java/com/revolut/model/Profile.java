@@ -14,6 +14,9 @@ public class Profile {
 	@JsonProperty
 	private Money money;
 	
+	Profile() {		
+	}
+	
 	public Profile(String profileId, Money money) {
 		Preconditions.checkNotNull(profileId);
 		Preconditions.checkNotNull(money);		

@@ -18,6 +18,9 @@ public class FxRate {
 	@JsonProperty
 	private BigDecimal rate;
 
+	FxRate() {
+	}
+	
 	public FxRate(Currency from, Currency to, BigDecimal rate) {
 		Preconditions.checkNotNull(from);
 		Preconditions.checkNotNull(to);

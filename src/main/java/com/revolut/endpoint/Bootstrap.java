@@ -13,15 +13,19 @@ import com.revolut.config.jdbc.JdbcApplicatonConfig;
 
 public class Bootstrap {
 
-	private static final String BASE_URI = "http://localhost:8080/revolut/";
+	public static final String BASE_URI = "http://localhost:8080/revolut/";
 
 	private static final Logger log = LoggerFactory.getLogger(Bootstrap.class);
 
-	private Bootstrap() {
+	public Bootstrap() {
 
 	}
 
 	public static void main(String[] args) {
+		new Bootstrap().start(BASE_URI);
+	}
+
+	public void start(String url) {
 		ApplicationConfig config = new JdbcApplicatonConfig();
 
 		config.refresh();
@@ -36,7 +40,6 @@ public class Bootstrap {
 		GrizzlyHttpServerFactory.createHttpServer(URI.create(BASE_URI), rc);
 
 		log.info("Jersey app started with WADL available at {}application.wadl", BASE_URI);
-
 	}
 
 }
